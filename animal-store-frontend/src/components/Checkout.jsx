@@ -38,41 +38,44 @@ export default function Checkout() {
   });
 
   const [loadingCity, setLoadingCity] = useState(false);
+  const [loading, setLoading] = useState(false); // loader for Place Order
 
   const totalAmount = cartItems.reduce(
     (total, item) => total + item.price * item.quantity,
     0
   );
 
-  useEffect(() => {
-    const fetchCity = async () => {
-      const pin = shippingInfo.postalCode;
-      if (/^\d{6}$/.test(pin)) {
-        setLoadingCity(true);
-        try {
-          const resp = await fetch(
-            `https://pinlookup.in/api/pincode?pincode=${pin}`
-          );
-          const json = await resp.json();
-          if (json?.data?.district_name && json?.data?.state_name) {
-            setShippingInfo((prev) => ({
-              ...prev,
-              city: json.data.district_name,
-              country: json.data.state_name,
-            }));
-            toast.success("City & State auto-filled");
-          } else {
-            toast.error("No city found for that PIN");
-          }
-        } catch {
-          toast.error("PIN lookup failed");
-        } finally {
-          setLoadingCity(false);
+useEffect(() => {
+  const fetchCity = async () => {
+    const pin = shippingInfo.postalCode;
+    if (/^\d{6}$/.test(pin)) {
+      setLoadingCity(true);
+      try {
+        const resp = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+        const json = await resp.json();
+
+        if (json[0]?.Status === "Success") {
+          const postOffice = json[0].PostOffice?.[0];
+          setShippingInfo((prev) => ({
+            ...prev,
+            city: postOffice?.District || "",
+            country: postOffice?.State || "",
+          }));
+          toast.success("City & State auto-filled");
+        } else {
+          toast.error("No city found for that PIN");
         }
+      } catch (err) {
+        console.error("PIN Lookup Error:", err);
+        toast.error("PIN lookup failed, please enter manually");
+      } finally {
+        setLoadingCity(false);
       }
-    };
-    fetchCity();
-  }, [shippingInfo.postalCode]);
+    }
+  };
+  fetchCity();
+}, [shippingInfo.postalCode]);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -104,6 +107,7 @@ export default function Checkout() {
     }
 
     try {
+      setLoading(true);
       const token = localStorage.getItem("token");
       const payload = {
         items: cartItems.map((item) => ({
@@ -117,17 +121,14 @@ export default function Checkout() {
         },
       };
 
-      const res = await fetch(
-        "http://localhost:5000/api/orders",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      const res = await fetch("http://localhost:5000/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
       const data = await res.json();
 
@@ -138,6 +139,8 @@ export default function Checkout() {
       navigate("/ordersuccess");
     } catch (err) {
       toast.error(`${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -263,13 +266,26 @@ export default function Checkout() {
             </div>
           </div>
 
+          {/* Place Order Button with Spinner */}
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={!loading ? { scale: 1.05 } : {}}
+            whileTap={!loading ? { scale: 0.98 } : {}}
             onClick={handleOrder}
-            className="w-full mt-8 flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white text-lg py-3 rounded-lg shadow-md transition"
+            disabled={loading}
+            className={`w-full mt-8 flex items-center justify-center gap-2 bg-gray-900 text-white text-lg py-3 rounded-lg shadow-md transition transform ${
+              loading
+                ? "opacity-70 cursor-not-allowed"
+                : "hover:bg-gray-800 hover:scale-105"
+            }`}
           >
-            <CheckCircleIcon className="h-6 w-6" /> Place Order
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <>
+                <CheckCircleIcon className="h-6 w-6" />
+                Place Order
+              </>
+            )}
           </motion.button>
         </motion.div>
       </div>

@@ -248,13 +248,24 @@ const MyOrders = () => {
                 ))}
               </ul>
               <div className="flex gap-3 mt-4">
+        
                 <PDFDownloadLink
-                  document={<OrderReceiptPDF order={selectedOrder} qrCode={qrCode} />}
-                  fileName={`Order_${selectedOrder._id}.pdf`}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold"
-                >
-                  {({ loading }) => (loading ? "Generating..." : "Download PDF")}
-                </PDFDownloadLink>
+  document={<OrderReceiptPDF order={selectedOrder} qrCode={qrCode} />}
+  fileName={`Order_${selectedOrder._id}.pdf`}
+  className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold flex items-center gap-2"
+>
+  {({ loading }) =>
+    loading ? (
+      <>
+        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        <span>Loading receipt...</span>
+      </>
+    ) : (
+      "Download PDF"
+    )
+  }
+</PDFDownloadLink>
+
 
                 {selectedOrder.status === "Pending" && (
                   <button
